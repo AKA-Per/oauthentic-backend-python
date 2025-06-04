@@ -1,0 +1,19 @@
+.venv
+.oauthvenv
+.env
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+.pytest_cache/
+pip-log.txt
+pip-delete-this-directory.txt
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+

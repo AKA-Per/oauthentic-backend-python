@@ -5,6 +5,7 @@ from sqlalchemy.sql import text
 from app.api.v1 import clients
 import os
 
+
 app = FastAPI()
 
 @app.get("/")

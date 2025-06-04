@@ -1,12 +1,13 @@
 from typing import Optional, Union
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from app.services import auth as AuthService
 from app.services import user as UserService
 from app.services import client as ClientService
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.db.schemas.client import ClientCreateDTO, ClientCreate
+from app.db.schemas.auth import TokenRequest
 import random
 import string
 from app.types.enums import UserType
@@ -14,6 +15,8 @@ from app.db.schemas.auth import SessionPayload
 from fastapi import Header, Request
 from user_agents import parse
 from app.core.security.token import generate_access_token
+from app.core.security.password import verify_password
+from app.utils._logging import logger
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -98,11 +101,61 @@ async def register_client (client_data: ClientCreateDTO,
     return token_data
 
 @router.post("/client/login")
-async def client_login(db: AsyncSession = Depends(get_db)):
+async def client_login(auth_data: TokenRequest, request: Request,
+                           user_agent:Union[str, None]=Header(default=None),  db: AsyncSession = Depends(get_db)):
     # TODO get the username and password for the client
+    username = auth_data.username
+    password = auth_data.password
     # TODO check if the username is exist in the user and client table
+    user = await UserService.get_user_by_email(db, username)
+    if not user:
+        logger.info(f"User not found {username}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password")
+    if not user.user_type == UserType.CLIENT:
+        logger.info(f"User is not of client type {username}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password")
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is inactive")
     # TODO create the login session and return the same
-    pass
+    auth = await AuthService.get_auth_by_username(db, username) 
+    # Check the password
+    if not auth:
+        logger.info(f"Auth not found for the user {username}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password") 
+    # check the password
+    if not verify_password(password, auth.password):
+        logger.info(f"Invalid password for the user {username}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password")
+    # Create the session
+    client_host = request.client.host
+    user_agent_str = user_agent
+    user_agent_parsed = parse(user_agent_str)
+    device = "WEB"
+    if user_agent_parsed.is_mobile:
+        device = "MOBILE"
+    elif user_agent_parsed.is_tablet:
+        device = "TABLET"
+    elif user_agent_parsed.is_pc:
+        device = "PC"
+    
+    ip = request.headers.get("x-forwarded-for")
+    ip = ip.split(",")[0] if ip else client_host
+    session_payload = SessionPayload(
+        user_id=user.id,
+        user_type=UserType.CLIENT,
+        device=device,
+        ip_address=ip,
+        user_agent=user_agent_str,
+        location=""
+    )
+    session = await AuthService.create_login_session(db, session_payload)
+    token_payload = {
+        "sub": session.id,
+        "iss": "oauthentic",
+        "aud": "oauthentic_client"
+    }
+    token_data = await generate_access_token(token_payload)
+    return token_data
 
 
 

@@ -14,8 +14,8 @@ async def create_auth(db: AsyncSession, user_id: UUID, client_id: UUID, username
     hashed_pw = hash_password(password)
     auth = Auth(user_id=user_id, client_id=client_id, username=username, password=hashed_pw)
     db.add(auth)
-    await db.commit()
-    await db.refresh(auth)
+    # await db.commit()
+    # await db.refresh(auth)
     return auth
 
 async def get_auth_by_username(db: AsyncSession, username: str) -> Optional[Auth]:
@@ -35,14 +35,26 @@ async def create_login_session(db: AsyncSession, payload: SessionPayload):
     session_payload = Session(
         **payload.model_dump(),
         logged_in=True,
-        logged_in_at=datetime.now(timezone.utc),
-        last_activity=datetime.now(timezone.utc),
+        logged_in_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        last_activity=datetime.now(timezone.utc).replace(tzinfo=None),
         session_id=generate_session_id(),
     )
     db.add(session_payload)
-    await db.commit()
-    await db.refresh()
+    # await db.commit()
+    # await db.refresh()
     return session_payload
+
+async def get_session_by_id(db: AsyncSession, session_id: str) -> Optional[Session]:
+    session = await db.execute(select(Session).where(Session.id == session_id))
+    return session.scalar_one_or_none()
+
+async def logout_session(db: AsyncSession, session: Session):
+    # session = await get_session_by_id(db, session_id)
+    session.logged_out_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    session.logged_in = False
+    await db.commit()
+    await db.refresh(session)
+    
 
 
 

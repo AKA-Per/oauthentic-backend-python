@@ -5,11 +5,12 @@ from app.db.models.user import User
 from uuid import UUID
 from app.types.enums import UserType
 
-async def create_user(db: AsyncSession, user: User) -> User:
-    db.app(user)
-    await db.commit()
-    await db.refresh()
-    return user
+async def create_user(db: AsyncSession, user: dict) -> User:
+    _user = User(**user)
+    db.add(_user)
+    # await db.commit()
+    # await db.refresh()
+    return _user
 
 async def get_user(db: AsyncSession, user_id: UUID) -> Optional[User]:
     result = await db.execute(select(User).where(User.id == user_id))

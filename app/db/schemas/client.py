@@ -36,3 +36,4 @@ class ClientCreate(SQLModel):
     email: str
     client_id: str
     access_id: str
+    mid: str

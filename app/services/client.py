@@ -19,10 +19,10 @@ async def create_client(db: AsyncSession, client_data: ClientCreate) -> Client:
     """
    
     
-    client = Client(**client_data.dict())
+    client = Client(**client_data.model_dump())
     db.add(client)
-    await db.commit()
-    await db.refresh(client)
+    # await db.commit()
+    # await db.refresh(client)
     return client
 
 

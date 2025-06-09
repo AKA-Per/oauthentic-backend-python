@@ -8,7 +8,7 @@ class User(SQLModel, TimestampMixin, table=True):
     __tablename__ = "users"
     
     id: UUID = Field(default_factory=uuid4, primary_key=True, index=True)
-    client_id: Union[str, None] = Field(default=None, nullable=True, index=True, foreign_key="clients.id")
+    client_id: Union[UUID, None] = Field(default=None, nullable=True, index=True, foreign_key="clients.id")
     email: Union[str, None] = Field(default=None, nullable=True, unique=True)
     phone: Union[str, None] = Field(default=None, nullable=True)
     first_name: str = Field(nullable=False)

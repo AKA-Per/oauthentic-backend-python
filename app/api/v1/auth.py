@@ -17,6 +17,7 @@ from user_agents import parse
 from app.core.security.token import generate_access_token
 from app.core.security.password import verify_password
 from app.utils._logging import logger
+from app.middleware.auth_middleware import verify_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -39,15 +40,17 @@ async def register_client (client_data: ClientCreateDTO,
     client_id = ''.join(random.choices(string.digits, k=8))
     # Create the access id
     access_id = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+    mid = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
     # Create the client create 
     serialize_data = client_data.model_dump()
-    client_db_data = ClientCreate(name=serialize_data['name'], email=serialize_data['email'], phone=serialize_data['phone'], client_id=client_id, access_id=access_id)
+    client_db_data = ClientCreate(name=serialize_data['name'], email=serialize_data['email'], phone=serialize_data['phone'], client_id=client_id, access_id=access_id, mid=mid)
     # TODO check if the client already exist with the same email
     client_exist = await ClientService.get_client_by_email(db, serialize_data['email'])
     if client_exist:
         raise HTTPException(status_code=400, detail="Client with this email already exists.")
     # TODO create the client data
     client_res = await ClientService.create_client(db, client_db_data)
+    await db.flush()
     # Create user with the client data
     user_data = {
         "email": serialize_data['email'],
@@ -58,7 +61,8 @@ async def register_client (client_data: ClientCreateDTO,
         "user_type": UserType.CLIENT
     }
     # Create the user
-    user = await UserService.create_user(db, user_data)
+    user = await UserService.create_user(db, user=user_data)
+    await db.flush()
     # TODO create the auth for the client
     auth_data = {
         "user_id": user.id,
@@ -67,6 +71,7 @@ async def register_client (client_data: ClientCreateDTO,
         "password": serialize_data['password'],
     }
     auth = await AuthService.create_auth(db, **auth_data)
+    await db.flush()
     # TODO create the session and return the same
     client_host = request.client.host
     user_agent_str = user_agent
@@ -91,13 +96,23 @@ async def register_client (client_data: ClientCreateDTO,
         location=""
     )
     session = await AuthService.create_login_session(db, session_pauload)
+    await db.flush()
+    # Now commit
+    await db.commit()
+    await db.refresh(client_res)
+    await db.refresh(user)
+    await db.refresh(auth)
+    await db.refresh(session)
+    logger.info("All data are saved")
     # Create the token from the session and user details
     token_payload = {
-        "sub": session.id,
+        "sub": str(session.id),
         "iss": "oauthentic",
         "aud": "oauthentic_client"
     }
+    logger.info(f"Token payload: {token_payload}")
     token_data = generate_access_token(token_payload)
+    logger.info(f"Token data: {token_data}")
     return token_data
 
 @router.post("/client/login")
@@ -149,13 +164,19 @@ async def client_login(auth_data: TokenRequest, request: Request,
         location=""
     )
     session = await AuthService.create_login_session(db, session_payload)
+    await db.commit()
+    await db.refresh(session)
     token_payload = {
-        "sub": session.id,
+        "sub": str(session.id),
         "iss": "oauthentic",
         "aud": "oauthentic_client"
     }
-    token_data = await generate_access_token(token_payload)
+    token_data = generate_access_token(token_payload)
     return token_data
 
-
+@router.post("/logout")
+async def logout(db: AsyncSession = Depends(get_db), session_data = Depends(verify_user)):
+    session = session_data.get("session")
+    await AuthService.logout_session(db, session)
+    return {"message": "Logged out successfully."}
 

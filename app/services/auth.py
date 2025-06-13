@@ -8,7 +8,7 @@ from app.db.models.session import Session
 from datetime import datetime
 from datetime import timezone
 from app.utils.common import generate_session_id
-from app.db.schemas.auth import SessionPayload
+from app.db.schemas.auth import SessionPayload, OAuthAppInitiate
 
 async def create_auth(db: AsyncSession, user_id: UUID, client_id: UUID, username: str, password: str):
     hashed_pw = hash_password(password)
@@ -56,6 +56,14 @@ async def logout_session(db: AsyncSession, session: Session):
     await db.refresh(session)
     
 
+async def initiate_oauth_session(db: AsyncSession, data: OAuthAppInitiate):
+    # Check the app id and app secret
+    
+    # From the code verfier and state create a session
+    # Create a temporary token from the app secret
+    # Encrypt the token and send back the session id
+    # With the session id the user will redirect to the auth domain
+    pass
 
 
 

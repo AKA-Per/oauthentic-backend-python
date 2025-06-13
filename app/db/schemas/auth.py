@@ -37,3 +37,16 @@ class SessionPayload(SQLModel):
     ip_address: str
     location: str
     user_agent: str
+    
+
+class OAuthAppInitiate(SQLModel):
+    app_id: str
+    app_secret: str
+    code_verifier: str
+    state: str
+    
+
+class OAuthBody(SQLModel):
+    code_verifier: str
+    state: str
+    

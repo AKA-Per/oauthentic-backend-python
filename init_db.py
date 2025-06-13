@@ -5,6 +5,7 @@ from app.db.models.client import Client
 from app.db.models.user import User
 from app.db.models.auth import Auth
 from app.db.models.session import Session
+from app.db.models.app import App
 
 from app.core.config import settings
 

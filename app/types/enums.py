@@ -8,3 +8,11 @@ class UserType(Enum):
     """Enum for user types."""
     CLIENT = "client"
     """Enum for user types."""
+    
+
+class AuthType(Enum):
+    """Enum for OAuth flow"""
+    OAUTH = "oauth"
+    OIDC = "oidc"
+    SSO = "sso"
+    

@@ -2,11 +2,30 @@ from fastapi import FastAPI, Depends
 from app.db.session import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import text
-from app.api.v1 import clients, auth, app as app_route
+from app.api.v1 import clients, auth, app as app_route, oauth as oauth_route
 import os
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.middleware.cors_middleware import ConditionalCorsMiddleware
 
 app = FastAPI()
+
+default_cors = CORSMiddleware(
+    app=app,
+    allow_origins=["http://localhost:5371"],
+    allow_credentials=True,
+    allow_headers=["*"],
+    allow_methods=["*"]
+)
+app.add_middleware(ConditionalCorsMiddleware)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5371"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 @app.get("/")
 async def read_root(db: AsyncSession = Depends(get_db)):
@@ -17,7 +36,8 @@ async def read_root(db: AsyncSession = Depends(get_db)):
 app.include_router(clients.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(app_route.router, prefix="/api/v1")
-variable = 10
+app.include_router(oauth_route.router, prefix="/api/v1")
+
 
 if __name__ == "__main__":
     import uvicorn

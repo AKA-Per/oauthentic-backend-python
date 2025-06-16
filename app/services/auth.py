@@ -5,10 +5,13 @@ from typing import Optional
 from app.db.models.auth import Auth
 from app.core.security.password import hash_password, verify_password
 from app.db.models.session import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 from datetime import timezone
 from app.utils.common import generate_session_id
 from app.db.schemas.auth import SessionPayload, OAuthAppInitiate
+from app.services.app import get_app_by_app_id
+from app.db.models.oauth_session import OAuthSession
+from app.utils.common import generate_string
 
 async def create_auth(db: AsyncSession, user_id: UUID, client_id: UUID, username: str, password: str):
     hashed_pw = hash_password(password)
@@ -37,7 +40,7 @@ async def create_login_session(db: AsyncSession, payload: SessionPayload):
         logged_in=True,
         logged_in_at=datetime.now(timezone.utc).replace(tzinfo=None),
         last_activity=datetime.now(timezone.utc).replace(tzinfo=None),
-        session_id=generate_session_id(),
+        # session_id=generate_session_id(),
     )
     db.add(session_payload)
     # await db.commit()
@@ -58,12 +61,28 @@ async def logout_session(db: AsyncSession, session: Session):
 
 async def initiate_oauth_session(db: AsyncSession, data: OAuthAppInitiate):
     # Check the app id and app secret
-    
+    app = await get_app_by_app_id(db, data.app_id)
+    if not app:
+        raise Exception("Invalid app id.")
     # From the code verfier and state create a session
+    expired_date = datetime.now(timezone.utc).replace(tzinfo=None)
+    session = OAuthSession(
+        app_id=app.id,
+        code_verifier=data.code_verifier,
+        state=data.state,
+        client_id=app.client_id,
+        session_id=generate_string(k=32),
+        expired_at=expired_date + timedelta(minutes=5),
+        ip_address=data.ip_address
+    )
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
     # Create a temporary token from the app secret
-    # Encrypt the token and send back the session id
+    # token = generate_string(k=64)
     # With the session id the user will redirect to the auth domain
-    pass
+    return session
 
-
-
+async def get_oauth_session(db: AsyncSession, session_id: str):
+    session = await db.execute(select(OAuthSession).where(OAuthSession.session_id == session_id))
+    return session.scalar_one_or_none()

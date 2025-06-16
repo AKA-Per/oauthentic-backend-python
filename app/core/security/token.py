@@ -13,7 +13,7 @@ def generate_access_token(payload: dict, expiry: Optional[int] = None) -> TokenD
     to_encode = payload.copy()
     to_encode.update({"exp": time.time() + expiry})
     encoded_jwt = jwt.encode(to_encode, settings.token_secret_key, algorithm=settings.token_algorithm)
-    to_encode['exp'] = expiry * 3
+    to_encode['exp'] = expiry * 3 # For refresh token the time should be increased
     refresh_token = jwt.encode(to_encode, settings.token_secret_key, algorithm=settings.token_algorithm)
     return TokenData(access_token = encoded_jwt, refresh_token = refresh_token)
 

@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel
+from  pydantic import EmailStr
 from uuid import UUID
 from typing import Optional
 
@@ -41,12 +42,18 @@ class SessionPayload(SQLModel):
 
 class OAuthAppInitiate(SQLModel):
     app_id: str
-    app_secret: str
     code_verifier: str
     state: str
+    ip_address: str
     
 
 class OAuthBody(SQLModel):
     code_verifier: str
     state: str
     
+class UserRegister(SQLModel):
+    username: EmailStr
+    password: str
+    first_name: str
+    last_name: str
+    phone: Optional[str] = None

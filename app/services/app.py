@@ -4,6 +4,7 @@ from app.db.schemas.app import CreateAppData
 from sqlmodel import select
 from app.utils.common import generate_string
 from uuid import UUID
+from typing import Union
 
 async def create_app(db: AsyncSession, data: CreateAppData) -> App:
     app = App(
@@ -24,8 +25,11 @@ async def create_app(db: AsyncSession, data: CreateAppData) -> App:
     return app
 
 
-async def get_app_by_id(db: AsyncSession, id: str, user_id: UUID):
-    res = await db.execute(select(App).where(App.id == id and App.user_id == user_id))
+async def get_app_by_id(db: AsyncSession, id: str, user_id: Union[UUID, None]):
+    query = select(App).where(App.id == id)
+    if user_id:
+        query = query.where(App.user_id == user_id)
+    res = await db.execute(query)
     return res.scalar_one_or_none()
 
 async def get_app_by_app_id(db: AsyncSession, app_id: str):

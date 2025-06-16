@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status, Header, Request
 from app.db.session import get_db
 from app.db.models.session import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,3 +47,32 @@ async def verify_user(authorization: Union[str, None] = Header(None), db: AsyncS
     
     return {"user": user, "session": session}
 
+
+async def verify_user_session_cookie(request: Request, db: AsyncSession = Depends(get_db)):
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        logger.error("Session ID is missing in the token payload.")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
+    session = await get_session_by_id(db, session_id)
+    if not session:
+        logger.error(f"Session with the ID {session_id} not found")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session not found.")
+    if session.logged_out_at:
+        logger.error(f"Session already logged out.")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session is invalid.")
+    
+    # Get the user id
+    user_id = session.user_id
+    if not user_id:
+        logger.error("User ID is missing from the session.")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session.")
+    # Fetch the user details
+    user = await get_user(db, user_id)
+    if not user:
+        logger.error(f"User with the ID {user_id} not found.")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session.")
+    if not user.is_active:
+        logger.error(f"User with the ID {user_id} is not active")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session.")
+    
+    return {"user": user, "session": session}

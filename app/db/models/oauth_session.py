@@ -13,6 +13,7 @@ class OAuthSession(SQLModel, TimestampMixin, table=True):
     code_verifier: str = Field(nullable=False)
     app_id: UUID = Field(foreign_key="apps.id", nullable=False)
     client_id: UUID = Field(foreign_key="clients.id", nullable=False)
+    user_id: Union[UUID, None] = Field(foreign_key="users.id", nullable=True, default=None)
     session_id: str = Field(nullable=False)
     ip_address: str = Field(nullable=True, default=None)
     code: str = Field(nullable=True, default=None)

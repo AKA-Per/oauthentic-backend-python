@@ -41,7 +41,7 @@ async def register_user(data: UserRegister, request: Request, response: Response
     user = await UserService.get_user_by_email(db, data.username)
     if user:
        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exist.")
-    # TODO create user object in DB
+    # create user object in DB
     user_data = {
         "email": data.username,
         "first_name": data.first_name,
@@ -96,24 +96,37 @@ async def register_user(data: UserRegister, request: Request, response: Response
 
 @router.post("/user/login")
 async def user_login(data: TokenRequest, request: Request, response: Response, session_id: str = Header(), user_agent: str = Header(), db: AsyncSession = Depends(get_db)):
+     # Get the session of OAuth 
+    oauth_session = await AuthService.get_oauth_session(db, session_id)
+    
+    if not oauth_session:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No session found.")
+    # Check for expiry
+    expiry_date = oauth_session.expired_at
+    current_timestamp = datetime.now(timezone.utc).replace(tzinfo=None)
+    if expiry_date <= current_timestamp:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request expired.")
+    
+    # Get the client id
+    client_id = oauth_session.client_id
     # Check if the user exist
     user = await UserService.get_user_by_email(db, data.username)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid username or password")
     if user.user_type != UserType.USER:
         logger.info(f"User type is not user for email: {data.username}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password1")
     if not user.is_active:
         logger.info("User is not active")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password2")
     
     auth = await AuthService.get_auth_by_username(db, username=data.username)
     if not auth:
         logger.info(f"Auth information not found for the user: {data.username}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password3")
     if not verify_password(data.password, auth.password):
         logger.info(f"Password did not match for the user f{data.username}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid username or password.4")
     
     client_host = request.client.host
     user_agent_str = user_agent

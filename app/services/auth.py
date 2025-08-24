@@ -86,3 +86,7 @@ async def initiate_oauth_session(db: AsyncSession, data: OAuthAppInitiate):
 async def get_oauth_session(db: AsyncSession, session_id: str):
     session = await db.execute(select(OAuthSession).where(OAuthSession.session_id == session_id))
     return session.scalar_one_or_none()
+
+async def get_oauth_session_by_code(db: AsyncSession, code: str):
+    session = await db.execute(select(OAuthSession).where(OAuthSession.code == code))
+    return session.scalar_one_or_none()
